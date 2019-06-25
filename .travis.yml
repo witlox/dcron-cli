@@ -1,0 +1,13 @@
+dist: xenial
+language: python
+python: 3.7
+install:
+- pip install .
+script:
+- python -m pytest tests/
+deploy:
+  provider: pypi
+  user: witlox
+  password:
+    secure: hFfyDw9WsUi7y/Kf/E1alSOEzD1HTA0fTT7xXHFzbRDoM6p9eqMsfbGdPOxUpcV14ZT3/mA1whA1HhQRAvJolXaaoPV/cKEPqqt0TB8vq0hlFNN0sjiWiOfwudgy2rzkqkOYlKKwEidL1COafESsNGD2JEOe/wQOVYhdeKdXAwmaCjf78C0U681EZNMXAkCfsvw703NGbeooX7RYWU8Iy3jdhBSa1oA2IQBglFLiO2AVHB6jaeIgVNWVJc18TiNAhPWn6T2P0uRvWyA54eEtrupFz5nCEQXLNDXmM8XneLwLlF5+8OoIqJx/GIR/CYGSAygHFkPKtDHi6Wkfc9NaNJUdM1ySpjg4iscTfPpog4WmmYZyrxWjJrw/cSF5TgiNeSBre6KJBs4ABIfPsdoZu4Czjt7wwZU4kN1+eK8izVrX+09K1J7Oq7g2hDmrD0Qc/BNIBFTJdWeCW8xx2gtJ9xiHoa0cNM1kq7Y4Ix3BZYIMBrcilDjhJTTV199S/Z2XeLeUAswa2xWbIEpySSQ+7/inDoRHCxfIm0KACbI0I2Qcc19CejdmKMQFnRtt7m3ZeTkBou8H/q6kHmtUOnaBsmkvuMBgwPke1UEJ+8vPsASPHztOMHEqVJnOMnYmBVHBcQix/Awr99IYUKaKZGirFrRWNcPP2A0iN1swiKD8e+Q=
+  skip_existing: true

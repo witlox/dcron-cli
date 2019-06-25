@@ -1,0 +1,3 @@
+recursive-include dcron/static *
+recursive-include dcron/templates *
+include dcron README.rst
