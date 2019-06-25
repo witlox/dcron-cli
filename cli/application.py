@@ -22,7 +22,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-import json
+
 import logging
 import random
 
@@ -111,7 +111,7 @@ def status(ctx):
 @click.pass_context
 def jobs(ctx):
     """
-    report cluster status
+    report cluster jobs
     """
     if not ctx.obj['SITE']:
         print('could not locate configuration object')
@@ -126,6 +126,36 @@ def jobs(ctx):
             logger.info("currently no jobs on the cluster")
         for line in r.json():
             logger.info("job [{0}]: {1} {2}".format(line['assigned_to'], line['parts'], line['command']))
+    except requests.exceptions.RequestException as e:
+        logger.error(e)
+
+
+@cli.command(help='show running cluster jobs')
+@click.pass_context
+def running(ctx):
+    """
+    report running cluster jobs
+    """
+    if not ctx.obj['SITE']:
+        print('could not locate configuration object')
+        exit(-10)
+
+    try:
+        if ctx.obj['SITE'].username:
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+        else:
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']))
+        if len(r.json()) == 0:
+            logger.info("currently no jobs on the cluster")
+        running = []
+        for line in r.json():
+            if 'pid' in line and line['pid']:
+                running.append(line)
+        if len(running) == 0:
+            logger.info("currently no running jobs on the cluster")
+        else:
+            for line in running:
+                logger.info("job [{0}]: {1} {2}, running with pid {3}".format(line['assigned_to'], line['parts'], line['command'], line['pid']))
     except requests.exceptions.RequestException as e:
         logger.error(e)
 
@@ -244,6 +274,7 @@ def details(ctx, pattern, command):
                 logger.info("***********************************************")
                 logger.info("- assigned to node: {0}".format(item['assigned_to']))
                 logger.info("- last run        : {0}".format(item['last_run']))
+                logger.info("- running pid     : {0}".format(item['pid']))
                 logger.info("- enabled         : {0}".format(item['enabled']))
                 logger.info("- user            : {0}".format(item['user']))
                 logger.info("- cron            : {0}".format(item['cron']))
