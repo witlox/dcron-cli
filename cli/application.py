@@ -23,12 +23,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 import logging
+import os
 import random
 
 import requests
 import click
 import click_log
+
+from dateutil import parser, tz
 
 from cli.configuration import Configuration
 
@@ -41,7 +45,6 @@ click_log.basic_config(logger)
 @click.option('-s', '--site-name', default='default', help='Name of the site to interact with (default: `default`)')
 @click.option('-m', '--selection-mechanism', default='first', help='selection mechanism for communicating with our clusters (first, last, random, `ip`, default: first)')
 @click.pass_context
-@click_log.simple_verbosity_option(logger)
 def cli(ctx, config_file, site_name, selection_mechanism):
     """
     This CLI allows you to manage dcron installations. Check your config file for settings, the
@@ -73,8 +76,10 @@ def cli(ctx, config_file, site_name, selection_mechanism):
         ctx.obj['ENTRY'] = specific
 
     if ctx.obj['SITE'].ssl:
+        ctx.obj['PREFIX'] = 'https'
         ctx.obj['URI'] = "https://{0}:{1}".format(ctx.obj['ENTRY'], ctx.obj['SITE'].port)
     else:
+        ctx.obj['PREFIX'] = 'http'
         ctx.obj['URI'] = "http://{0}:{1}".format(ctx.obj['ENTRY'], ctx.obj['SITE'].port)
 
     if ctx.obj['SITE'].log_level == 'debug' or ctx.obj['SITE'].log_level == 'verbose':
@@ -100,9 +105,32 @@ def status(ctx):
             r = requests.get("{0}/status".format(ctx.obj['URI']))
         if len(r.json()) == 0:
             logger.error("could not retrieve cluster state!")
+        logging.info('------------------------------------------------------')
+        logging.info("{0} nodes in cluster".format(len(r.json())))
         for line in r.json():
-            del(line['_type'])
-            logger.info(line)
+            if 'ip' not in line:
+                logger.error("could not find ip in state line: {0}".format(line))
+            else:
+                try:
+                    if ctx.obj['SITE'].username:
+                        r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], line['ip'], ctx.obj['SITE'].port), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+                    else:
+                        r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], line['ip'], ctx.obj['SITE'].port))
+                    logging.info('******************************************************')
+                    logging.info("ip           : {0}".format(line['ip']))
+                    load = float(line['load'])
+                    logging.info("load         : {0:.2f}%".format(load))
+                    logging.info("state        : {0}".format(line['state']))
+                    dt = parser.parse(line['time'])
+                    logging.info("communicated : {0:%Y-%m-%d %H:%M}".format(dt.astimezone(tz.tzlocal())))
+                    if r.status_code == 200:
+                        logging.info('cron         : in sync')
+                    else:
+                        logging.info('cron         : out of sync')
+                        logging.warning(r.text)
+                except requests.exceptions.RequestException as re:
+                    logger.error(re)
+        logging.info('------------------------------------------------------')
     except requests.exceptions.RequestException as e:
         logger.error(e)
 
@@ -399,6 +427,75 @@ def kill(ctx, pattern, command):
             r = requests.post("{0}/kill_job".format(ctx.obj['URI']), data=data)
         if r.status_code == 202:
             logger.info("successfully submitted run request {0} with pattern {1}".format(command, pattern))
+        else:
+            logger.warning("unsuccessful request: {0} ({1})".format(r.text, r.status_code))
+    except requests.exceptions.RequestException as e:
+        logger.error(e)
+
+
+@cli.command(help='export jobs on cluster')
+@click.option('-f', '--file-name', help='export current jobs to file')
+@click.option('--force', is_flag=True, help='overwrite if the file exists')
+@click.pass_context
+def export(ctx, file_name, force):
+    """
+    export jobs
+    """
+    if not ctx.obj['SITE']:
+        print('could not locate configuration object')
+        exit(-10)
+
+    if ctx.obj['SITE'].username:
+        r = requests.get("{0}/export".format(ctx.obj['URI']), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+    else:
+        r = requests.get("{0}/export".format(ctx.obj['URI']))
+    if len(r.json()) == 0:
+        logger.warning("no jobs found for exporting")
+    else:
+        logger.debug("got export data: {0}".format(r.json()))
+        directory = os.path.dirname(file_name)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        if os.path.exists(file_name):
+            if force:
+                os.remove(file_name)
+                with open(file_name, 'wb') as fp:
+                    fp.write(r.content)
+                logger.info("successfully writen export to {0}".format(file_name))
+            else:
+                logger.error("file already exists (use --force to overwrite")
+                exit(-33)
+        else:
+            with open(file_name, 'wb') as fp:
+                fp.write(r.content)
+            logger.info("successfully writen export to {0}".format(file_name))
+
+
+@cli.command(name='import', help='import jobs on cluster')
+@click.option('-f', '--file-name', help='import jobs from file to cluster')
+@click.pass_context
+def import_data(ctx, file_name):
+    """
+    export jobs
+    """
+    if not ctx.obj['SITE']:
+        print('could not locate configuration object')
+        exit(-10)
+
+    if not os.path.exists(file_name):
+        print("could not locate file for importing {0}".format(file_name))
+        exit(-34)
+
+    with open(file_name, 'rb') as fp:
+        data = json.load(fp)
+
+    try:
+        if ctx.obj['SITE'].username:
+            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': json.dumps(data)}, auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+        else:
+            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': json.dumps(data)})
+        if r.status_code == 200:
+            logger.info("successfully imported data")
         else:
             logger.warning("unsuccessful request: {0} ({1})".format(r.text, r.status_code))
     except requests.exceptions.RequestException as e:

@@ -31,7 +31,7 @@ from setuptools import setup
 
 version = "0.1.1"
 
-requirements = ['click', 'click-log', 'requests']
+requirements = ['click', 'click-log', 'requests', 'python-dateutil']
 
 test_requirements = ['pytest', 'tox']
 
