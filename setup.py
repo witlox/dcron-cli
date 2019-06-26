@@ -73,7 +73,7 @@ setup(name="dcron-cli",
       ],
       include_package_data=True,
       install_requires=requirements,
-      python_requires=">=3.7",
+      python_requires=">=3.4",
       keywords="Python, Python3",
       project_urls={
           "Documentation": "https://dcron-cli.readthedocs.io/en/latest/",

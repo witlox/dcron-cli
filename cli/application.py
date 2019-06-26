@@ -487,13 +487,13 @@ def import_data(ctx, file_name):
         exit(-34)
 
     with open(file_name, 'rb') as fp:
-        data = json.load(fp)
+        data = fp.readlines()
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': json.dumps(data)}, auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': data}, auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': json.dumps(data)})
+            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': data})
         if r.status_code == 200:
             logger.info("successfully imported data")
         else:
