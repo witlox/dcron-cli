@@ -122,7 +122,7 @@ def status(ctx):
                     logging.info("load         : {0:.2f}%".format(load))
                     logging.info("state        : {0}".format(line['state']))
                     dt = parser.parse(line['time'])
-                    logging.info("communicated : {0:%Y-%m-%d %H:%M}".format(dt.astimezone(tz.tzlocal())))
+                    logging.info("communicated : {0:%Y-%m-%d %H:%M:%S}".format(dt.astimezone(tz.tzlocal())))
                     if r.status_code == 200:
                         logging.info('cron         : in sync')
                     else:
