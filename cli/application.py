@@ -23,7 +23,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import json
 import logging
 import os
 import random
@@ -34,7 +33,7 @@ import click_log
 
 from dateutil import parser, tz
 
-from cli.configuration import Configuration
+from cli.configuration import Configuration, Site
 
 logger = logging.getLogger()
 click_log.basic_config(logger)
@@ -44,13 +43,14 @@ click_log.basic_config(logger)
 @click.option('-c', '--config-file', default='~/.dcron/sites.json', help='configuration file (created if not exists, default: ~/.dcron/sites.json)')
 @click.option('-s', '--site-name', default='default', help='Name of the site to interact with (default: `default`)')
 @click.option('-m', '--selection-mechanism', default='first', help='selection mechanism for communicating with our clusters (first, last, random, `ip`, default: first)')
+@click.option('--debug', is_flag=True, help='force debug logging')
 @click.pass_context
-def cli(ctx, config_file, site_name, selection_mechanism):
+def cli(ctx, config_file, site_name, selection_mechanism, debug):
     """
     This CLI allows you to manage dcron installations. Check your config file for settings, the
     default location is in your home folder under `~/.dcron/sites.json`.
     """
-    ctx.obj = {}
+    ctx.obj = {'PATH': config_file}
 
     config_file = Configuration(config_file)
     ctx.obj['SITE'] = next(iter([s for s in config_file.sites if s.name == site_name]), None)
@@ -82,7 +82,7 @@ def cli(ctx, config_file, site_name, selection_mechanism):
         ctx.obj['PREFIX'] = 'http'
         ctx.obj['URI'] = "http://{0}:{1}".format(ctx.obj['ENTRY'], ctx.obj['SITE'].port)
 
-    if ctx.obj['SITE'].log_level == 'debug' or ctx.obj['SITE'].log_level == 'verbose':
+    if ctx.obj['SITE'].log_level == 'debug' or ctx.obj['SITE'].log_level == 'verbose' or debug:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
@@ -500,6 +500,74 @@ def import_data(ctx, file_name):
             logger.warning("unsuccessful request: {0} ({1})".format(r.text, r.status_code))
     except requests.exceptions.RequestException as e:
         logger.error(e)
+
+
+@cli.command(name='ls', help='list all site names')
+@click.pass_context
+def list_sites(ctx):
+    config = Configuration(ctx.obj['PATH'])
+    if len(config.sites) == 0:
+        logger.warning("no sites found for config on {0}".format(ctx.obj['PATH']))
+    else:
+        for site in config.sites:
+            logger.info(site.name)
+
+
+@cli.command(name='a', help='add a site')
+@click.option('-n', '--name', help='name of the site')
+@click.option('-s', '--servers', help='server to add to site (if multiple separate by ,)')
+@click.option('-p', '--port', default=8080, help='port to communicate over (default: 8080)')
+@click.option('--username', default=None, help='username if basic auth is enabled on the site')
+@click.option('--password', default=None, help='password if basic auth is enabled on the site')
+@click.option('--ssl', is_flag=True, help='communicate over ssl')
+@click.pass_context
+def add(ctx, name, servers, port, username, password, ssl):
+    config = Configuration(ctx.obj['PATH'])
+    site = next(iter([s for s in config.sites if s.name == name]), None)
+    if site:
+        logger.error("site already exists {0}".format(name))
+    else:
+        site = Site()
+        site.name = name
+        site.servers = servers.split(',')
+        site.port = port
+        site.username = username
+        site.password = password
+        if ssl:
+            site.ssl = True
+        config.sites.append(site)
+        config.write(ctx.obj['PATH'])
+        logger.info("added site {0}".format(name))
+
+
+@cli.command(name='rm', help='remove an existing site')
+@click.option('-n', '--name', help='name of the site')
+@click.pass_context
+def remove(ctx, name):
+    config = Configuration(ctx.obj['PATH'])
+    site = next(iter([s for s in config.sites if s.name == name]), None)
+    if not site:
+        logger.warning("could not find site {0}".format(name))
+    config.sites.remove(site)
+    config.write(ctx.obj['PATH'])
+    logger.info("removed site {0}".format(name))
+
+
+@cli.command(name='info', help='get site info')
+@click.option('-n', '--name', help='name of the site')
+@click.pass_context
+def info(ctx, name):
+    config = Configuration(ctx.obj['PATH'])
+    site = next(iter([s for s in config.sites if s.name == name]), None)
+    if not site:
+        logger.warning("could not find site {0}".format(name))
+    logger.info("name     : {0}".format(name))
+    logger.info("servers  : {0}".format(', '.join(site.servers)))
+    logger.info("port     : {0}".format(site.port))
+    logger.info("ssl      : {0}".format(site.ssl))
+    if site.username:
+        logger.info("username : {0}".format(site.username))
+        logger.info("password : {0}".format(site.password))
 
 
 def main():

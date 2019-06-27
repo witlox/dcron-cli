@@ -24,34 +24,38 @@ Command line flags
 
 .. code-block:: console
 
-   Usage: dcron-cli [OPTIONS] COMMAND [ARGS]...
+Usage: dcron-cli [OPTIONS] COMMAND [ARGS]...
 
-     This CLI allows you to manage dcron installations. Check your config file
-     for settings, the default location is in your home folder under
-     `~/.dcron/sites.json`.
+  This CLI allows you to manage dcron installations. Check your config file
+  for settings, the default location is in your home folder under
+  `~/.dcron/sites.json`.
 
-   Options:
-     -c, --config-file TEXT          configuration file (created if not exists,
-                                     default: ~/.dcron/sites.json)
-     -s, --site-name TEXT            Name of the site to interact with (default:
-                                     `default`)
-     -m, --selection-mechanism TEXT  selection mechanism for communicating with
-                                     our clusters (first, last, random, `ip`,
-                                     default: first)
-     --help                          Show this message and exit.
+Options:
+  -c, --config-file TEXT          configuration file (created if not exists,
+                                  default: ~/.dcron/sites.json)
+  -s, --site-name TEXT            Name of the site to interact with (default:
+                                  `default`)
+  -m, --selection-mechanism TEXT  selection mechanism for communicating with
+                                  our clusters (first, last, random, `ip`,
+                                  default: first)
+  --help                          Show this message and exit.
 
-   Commands:
-     add      add job to cluster
-     details  job details from cluster
-     export   export jobs on cluster
-     import   import jobs on cluster
-     jobs     show cluster jobs
-     kill     kill defined job on cluster
-     logs     job logs from cluster
-     remove   remove job from cluster
-     run      run defined job on cluster
-     running  show running cluster jobs
-     status   show cluster status
+Commands:
+  a        add a site
+  add      add job to cluster
+  details  job details from cluster
+  export   export jobs on cluster
+  import   import jobs on cluster
+  info     get site info
+  jobs     show cluster jobs
+  kill     kill defined job on cluster
+  logs     job logs from cluster
+  ls       list all site names
+  remove   remove job from cluster
+  rm       remove an existing site
+  run      run defined job on cluster
+  running  show running cluster jobs
+  status   show cluster status
 
 sites.json
 ==========

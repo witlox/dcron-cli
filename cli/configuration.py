@@ -50,10 +50,10 @@ class Configuration(object):
 
     def __init__(self, config_file=None, create=True):
         self.sites = [Site()]
-        if create and config_file:
-            self.write(expandvars(expanduser(config_file)))
         if config_file and exists(expandvars(expanduser(config_file))):
             self.read(expandvars(expanduser(config_file)))
+        elif create and config_file:
+            self.write(expandvars(expanduser(config_file)))
 
     def read(self, path):
         if not exists(path):
@@ -66,12 +66,18 @@ class Configuration(object):
             self.logger.debug("writing new config to {0}".format(path))
             if not exists(dirname(path)):
                 Path.mkdir(Path(dirname(path)), parents=True)
+            data = json.dumps(self.sites, cls=SiteEncoder)
             with open(path, 'w') as cf:
-                cf.write(json.dumps(self.sites, cls=SiteEncoder))
+                self.logger.debug("writing to file {0}: {1}".format(path, data))
+                cf.write(data)
+                self.logger.debug("finished writing")
         else:
             self.logger.debug("already found config at {0}, overwriting it".format(path))
+            data = json.dumps(self.sites, cls=SiteEncoder)
             with open(path, 'w') as cf:
-                cf.write(json.dumps(self.sites, cls=SiteEncoder))
+                self.logger.debug("writing to file {0}: {1}".format(path, data))
+                cf.write(data)
+                self.logger.debug("finished writing")
 
 
 class SiteEncoder(JSONEncoder):
