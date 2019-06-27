@@ -33,8 +33,6 @@ version = "0.1.1"
 
 requirements = ['click', 'click-log', 'requests', 'python-dateutil']
 
-test_requirements = ['pytest', 'tox']
-
 if sys.argv[-1] == "tag":
     os.system("git tag -a {0} -m 'version {1}'".format(version, version))
     os.system("git push origin master --tags")
@@ -43,16 +41,6 @@ if sys.argv[-1] == "tag":
 if sys.argv[-1] == "publish":
     os.system("python setup.py sdist upload")
     os.system("python setup.py bdist_wheel upload")
-    sys.exit()
-
-if sys.argv[-1] == "test":
-    try:
-        modules = map(__import__, test_requirements)
-    except ImportError as e:
-        raise ImportError("{0} is not installed. Install your test requirements.".format(
-            str(e).replace("No module named ", ""))
-        )
-    os.system('py.test')
     sys.exit()
 
 setup(name="dcron-cli",
@@ -80,8 +68,6 @@ setup(name="dcron-cli",
           "Source": "https://github.com/witlox/dcron-cli",
           "Tracker": "https://github.com/witlox/dcron-cli/issues",
       },
-      test_suite="tests",
-      tests_require=test_requirements,
       classifiers=["Development Status :: 4 - Beta",
                    "Intended Audience :: System Administrators",
                    "Natural Language :: English",
