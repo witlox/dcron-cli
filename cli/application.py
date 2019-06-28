@@ -109,7 +109,7 @@ def status(ctx):
             r = requests.get("{0}/status".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
             r = requests.get("{0}/status".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
-        if len(r.json()) == 0:
+        if not r or len(r.json()) == 0:
             logger.error("could not retrieve cluster state!")
         logging.info('------------------------------------------------------')
         logging.info("{0} nodes in cluster".format(len(r.json())))
@@ -117,11 +117,6 @@ def status(ctx):
             if 'ip' not in line:
                 logger.error("could not find ip in state line: {0}".format(line))
             else:
-                try:
-                    if ctx.obj['SITE'].username:
-                        r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], line['ip'], ctx.obj['SITE'].port), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
-                    else:
-                        r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], line['ip'], ctx.obj['SITE'].port), verify=ctx.obj['SSL_VERIFY'])
                     logging.info('******************************************************')
                     logging.info("ip           : {0}".format(line['ip']))
                     load = float(line['load'])
@@ -129,13 +124,19 @@ def status(ctx):
                     logging.info("state        : {0}".format(line['state']))
                     dt = parser.parse(line['time'])
                     logging.info("communicated : {0:%Y-%m-%d %H:%M:%S}".format(dt.astimezone(tz.tzlocal())))
-                    if r.status_code == 200:
-                        logging.info('cron         : in sync')
-                    else:
-                        logging.info('cron         : out of sync')
-                        logging.warning(r.text)
-                except requests.exceptions.RequestException as re:
-                    logger.error(re)
+        logging.info('******************************************************')
+        for server in ctx.obj['SITE'].servers:
+            try:
+                if ctx.obj['SITE'].username:
+                    r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], server, ctx.obj['SITE'].port), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+                else:
+                    r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], server, ctx.obj['SITE'].port), verify=ctx.obj['SSL_VERIFY'])
+                if r.status_code == 200:
+                    logging.info('cron in sync for {0}'.format(server))
+                else:
+                    logging.warning('cron: out of sync {0} ({1})'.format(server, r.text))
+            except requests.exceptions.RequestException as re:
+                logger.error(re)
         logging.info('------------------------------------------------------')
     except requests.exceptions.RequestException as e:
         logger.error(e)

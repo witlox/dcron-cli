@@ -29,7 +29,7 @@ import sys
 
 from setuptools import setup
 
-version = "0.1.3"
+version = "0.1.4"
 
 requirements = ['click', 'click-log', 'requests', 'python-dateutil']
 
