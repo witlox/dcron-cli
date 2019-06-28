@@ -27,6 +27,9 @@ import logging
 import os
 import random
 
+from pathlib import Path
+from os.path import join
+
 import requests
 import click
 import click_log
@@ -40,7 +43,7 @@ click_log.basic_config(logger)
 
 
 @click.group()
-@click.option('-c', '--config-file', default='~/.dcron/sites.json', help='configuration file (created if not exists, default: ~/.dcron/sites.json)')
+@click.option('-c', '--config-file', default=join(str(Path.home()), '.dcron', 'sites.json'), help='configuration file (created if not exists)')
 @click.option('-s', '--site-name', default='default', help='Name of the site to interact with (default: `default`)')
 @click.option('-m', '--selection-mechanism', default='first', help='selection mechanism for communicating with our clusters (first, last, random, `ip`, default: first)')
 @click.option('--no-ssl-verify', is_flag=True, help='disable ssl verification')
@@ -92,6 +95,9 @@ def cli(ctx, config_file, site_name, selection_mechanism, no_ssl_verify, debug):
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
+
+    logger.debug("using config file {0}".format(ctx.obj['PATH']))
+    logger.debug("using entrypoint {0}".format(ctx.obj['ENTRY']))
 
 
 @cli.command(help='show cluster status')
