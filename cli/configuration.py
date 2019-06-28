@@ -28,6 +28,7 @@ import logging
 from json import JSONEncoder, JSONDecoder
 
 from pathlib import Path
+from os import remove
 from os.path import exists, dirname, expandvars, expanduser
 
 
@@ -50,33 +51,30 @@ class Configuration(object):
 
     def __init__(self, config_file=None, create=True):
         self.sites = [Site()]
-        if config_file and exists(expandvars(expanduser(config_file))):
-            self.read(expandvars(expanduser(config_file)))
+        if config_file and exists(config_file):
+            self.read(config_file)
         elif create and config_file:
-            self.write(expandvars(expanduser(config_file)))
+            self.write(config_file)
 
     def read(self, path):
         if not exists(path):
             self.logger.error("could not locate config at {0}".format(path))
         with open(path, 'r') as handle:
-            self.sites = json.loads(handle.readline(), cls=SiteDecoder)
+            self.sites = json.load(handle, cls=SiteDecoder)
 
     def write(self, path):
         if not exists(path):
             self.logger.debug("writing new config to {0}".format(path))
             if not exists(dirname(path)):
                 Path.mkdir(Path(dirname(path)), parents=True)
-            data = json.dumps(self.sites, cls=SiteEncoder)
             with open(path, 'w') as cf:
-                self.logger.debug("writing to file {0}: {1}".format(path, data))
-                cf.write(data)
+                json.dump(self.sites, cf, cls=SiteEncoder)
                 self.logger.debug("finished writing")
         else:
             self.logger.debug("already found config at {0}, overwriting it".format(path))
-            data = json.dumps(self.sites, cls=SiteEncoder)
+            remove(path)
             with open(path, 'w') as cf:
-                self.logger.debug("writing to file {0}: {1}".format(path, data))
-                cf.write(data)
+                json.dump(self.sites, cf, cls=SiteEncoder)
                 self.logger.debug("finished writing")
 
 

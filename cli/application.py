@@ -43,9 +43,10 @@ click_log.basic_config(logger)
 @click.option('-c', '--config-file', default='~/.dcron/sites.json', help='configuration file (created if not exists, default: ~/.dcron/sites.json)')
 @click.option('-s', '--site-name', default='default', help='Name of the site to interact with (default: `default`)')
 @click.option('-m', '--selection-mechanism', default='first', help='selection mechanism for communicating with our clusters (first, last, random, `ip`, default: first)')
+@click.option('--no-ssl-verify', is_flag=True, help='disable ssl verification')
 @click.option('--debug', is_flag=True, help='force debug logging')
 @click.pass_context
-def cli(ctx, config_file, site_name, selection_mechanism, debug):
+def cli(ctx, config_file, site_name, selection_mechanism, no_ssl_verify, debug):
     """
     This CLI allows you to manage dcron installations. Check your config file for settings, the
     default location is in your home folder under `~/.dcron/sites.json`.
@@ -82,6 +83,11 @@ def cli(ctx, config_file, site_name, selection_mechanism, debug):
         ctx.obj['PREFIX'] = 'http'
         ctx.obj['URI'] = "http://{0}:{1}".format(ctx.obj['ENTRY'], ctx.obj['SITE'].port)
 
+    if no_ssl_verify:
+        ctx.obj['SSL_VERIFY'] = False
+    else:
+        ctx.obj['SSL_VERIFY'] = True
+
     if ctx.obj['SITE'].log_level == 'debug' or ctx.obj['SITE'].log_level == 'verbose' or debug:
         logger.setLevel(logging.DEBUG)
     else:
@@ -100,9 +106,9 @@ def status(ctx):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.get("{0}/status".format(ctx.obj['URI']), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.get("{0}/status".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.get("{0}/status".format(ctx.obj['URI']))
+            r = requests.get("{0}/status".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
         if len(r.json()) == 0:
             logger.error("could not retrieve cluster state!")
         logging.info('------------------------------------------------------')
@@ -113,9 +119,9 @@ def status(ctx):
             else:
                 try:
                     if ctx.obj['SITE'].username:
-                        r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], line['ip'], ctx.obj['SITE'].port), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+                        r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], line['ip'], ctx.obj['SITE'].port), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
                     else:
-                        r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], line['ip'], ctx.obj['SITE'].port))
+                        r = requests.get("{0}://{1}:{2}/cron_in_sync".format(ctx.obj['PREFIX'], line['ip'], ctx.obj['SITE'].port), verify=ctx.obj['SSL_VERIFY'])
                     logging.info('******************************************************')
                     logging.info("ip           : {0}".format(line['ip']))
                     load = float(line['load'])
@@ -147,9 +153,9 @@ def jobs(ctx):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.get("{0}/jobs".format(ctx.obj['URI']), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.get("{0}/jobs".format(ctx.obj['URI']))
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
         if len(r.json()) == 0:
             logger.info("currently no jobs on the cluster")
         for line in r.json():
@@ -170,9 +176,9 @@ def running(ctx):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.get("{0}/jobs".format(ctx.obj['URI']), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.get("{0}/jobs".format(ctx.obj['URI']))
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
         if len(r.json()) == 0:
             logger.info("currently no jobs on the cluster")
         running = []
@@ -219,9 +225,9 @@ def add(ctx, pattern, command, enabled):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.post("{0}/add_job".format(ctx.obj['URI']), data=data, auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.post("{0}/add_job".format(ctx.obj['URI']), data=data, verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.post("{0}/add_job".format(ctx.obj['URI']), data=data)
+            r = requests.post("{0}/add_job".format(ctx.obj['URI']), data=data, verify=ctx.obj['SSL_VERIFY'])
         if r.status_code == 201:
             logger.info("successfully submitted job {0} with pattern {1} (enabled: {2})".format(command, pattern, enabled))
         else:
@@ -257,9 +263,9 @@ def remove(ctx, pattern, command):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.post("{0}/remove_job".format(ctx.obj['URI']), data=data, auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.post("{0}/remove_job".format(ctx.obj['URI']), data=data, verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.post("{0}/remove_job".format(ctx.obj['URI']), data=data)
+            r = requests.post("{0}/remove_job".format(ctx.obj['URI']), data=data, verify=ctx.obj['SSL_VERIFY'])
         if r.status_code == 200:
             logger.info("successfully submitted remove request {0} with pattern {1}".format(command, pattern))
         else:
@@ -286,9 +292,9 @@ def details(ctx, pattern, command):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.get("{0}/jobs".format(ctx.obj['URI']), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.get("{0}/jobs".format(ctx.obj['URI']))
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
 
         if len(r.json()) == 0:
             logger.info("currently no jobs on the cluster")
@@ -334,9 +340,9 @@ def logs(ctx, pattern, command):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.get("{0}/jobs".format(ctx.obj['URI']), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.get("{0}/jobs".format(ctx.obj['URI']))
+            r = requests.get("{0}/jobs".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
 
         if len(r.json()) == 0:
             logger.info("currently no jobs on the cluster")
@@ -384,9 +390,9 @@ def run(ctx, pattern, command):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.post("{0}/run_job".format(ctx.obj['URI']), data=data, auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.post("{0}/run_job".format(ctx.obj['URI']), data=data, verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.post("{0}/run_job".format(ctx.obj['URI']), data=data)
+            r = requests.post("{0}/run_job".format(ctx.obj['URI']), data=data, verify=ctx.obj['SSL_VERIFY'])
         if r.status_code == 202:
             logger.info("successfully submitted run request {0} with pattern {1}".format(command, pattern))
         else:
@@ -422,9 +428,9 @@ def kill(ctx, pattern, command):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.post("{0}/kill_job".format(ctx.obj['URI']), data=data, auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.post("{0}/kill_job".format(ctx.obj['URI']), data=data, verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.post("{0}/kill_job".format(ctx.obj['URI']), data=data)
+            r = requests.post("{0}/kill_job".format(ctx.obj['URI']), data=data, verify=ctx.obj['SSL_VERIFY'])
         if r.status_code == 202:
             logger.info("successfully submitted run request {0} with pattern {1}".format(command, pattern))
         else:
@@ -446,9 +452,9 @@ def export(ctx, file_name, force):
         exit(-10)
 
     if ctx.obj['SITE'].username:
-        r = requests.get("{0}/export".format(ctx.obj['URI']), auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+        r = requests.get("{0}/export".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
     else:
-        r = requests.get("{0}/export".format(ctx.obj['URI']))
+        r = requests.get("{0}/export".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
     if len(r.json()) == 0:
         logger.warning("no jobs found for exporting")
     else:
@@ -491,9 +497,9 @@ def import_data(ctx, file_name):
 
     try:
         if ctx.obj['SITE'].username:
-            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': data}, auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': data}, verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
-            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': data})
+            r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': data}, verify=ctx.obj['SSL_VERIFY'])
         if r.status_code == 200:
             logger.info("successfully imported data")
         else:
