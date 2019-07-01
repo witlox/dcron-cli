@@ -166,7 +166,7 @@ def jobs(ctx):
         if len(r.json()) == 0:
             logger.info("currently no jobs on the cluster")
         for line in r.json():
-            logger.info("job [{0}]: {1} {2}".format(line['assigned_to'], line['parts'], line['command']))
+            logger.info("job ({0}@{1}): [{2}] {3} {4}".format(line['user'], line['assigned_to'], 'enabled' if line['enabled'] else 'disabled', line['parts'], line['command']))
     except requests.exceptions.RequestException as e:
         logger.error(e)
 
