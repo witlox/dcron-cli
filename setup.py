@@ -29,7 +29,7 @@ import sys
 
 from setuptools import setup
 
-version = "0.1.6"
+version = "0.1.7"
 
 requirements = ['click', 'click-log', 'requests', 'python-dateutil']
 
@@ -89,7 +89,7 @@ setup(name="dcron-cli",
                    "License :: OSI Approved :: MIT License",
                    "Programming Language :: Python",
                    "Programming Language :: Python :: 3",
-                   "Programming Language :: Python :: 3.7",
+                   "Programming Language :: Python :: 3.4",
                    "Topic :: Software Development :: Libraries",
                    "Topic :: Utilities"],
       )

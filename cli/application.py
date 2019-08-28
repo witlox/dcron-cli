@@ -107,7 +107,7 @@ def status(ctx):
     report cluster status
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     try:
@@ -115,7 +115,7 @@ def status(ctx):
             r = requests.get("{0}/status".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
         else:
             r = requests.get("{0}/status".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
-        if not r or len(r.json()) == 0:
+        if not r or not r.json() or len(r.json()) == 0:
             logger.error("could not retrieve cluster state!")
         logging.info('------------------------------------------------------')
         logging.info("{0} nodes in cluster".format(len(r.json())))
@@ -155,7 +155,7 @@ def jobs(ctx):
     report cluster jobs
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     try:
@@ -178,7 +178,7 @@ def running(ctx):
     report running cluster jobs
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     try:
@@ -188,14 +188,14 @@ def running(ctx):
             r = requests.get("{0}/jobs".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
         if len(r.json()) == 0:
             logger.info("currently no jobs on the cluster")
-        running = []
+        running_jobs = []
         for line in r.json():
             if 'pid' in line and line['pid']:
-                running.append(line)
-        if len(running) == 0:
+                running_jobs.append(line)
+        if len(running_jobs) == 0:
             logger.info("currently no running jobs on the cluster")
         else:
-            for line in running:
+            for line in running_jobs:
                 logger.info("job [{0}]: {1} {2}, running with pid {3}".format(line['assigned_to'], line['parts'], line['command'], line['pid']))
     except requests.exceptions.RequestException as e:
         logger.error(e)
@@ -211,11 +211,11 @@ def add(ctx, pattern, command, enabled):
     add a cron job to the cluster
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     if not len(pattern.split(' ')) == 5:
-        print('pattern not valid, should follow cron pattern (* * * * *)')
+        logger.error('pattern not valid, should follow cron pattern (* * * * *)')
         exit(-11)
 
     data = {
@@ -252,11 +252,11 @@ def remove(ctx, pattern, command):
     remove a cron job from the cluster
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     if not len(pattern.split(' ')) == 5:
-        print('pattern not valid, should follow cron pattern (* * * * *)')
+        logger.error('pattern not valid, should follow cron pattern (* * * * *)')
         exit(-11)
 
     data = {
@@ -290,11 +290,11 @@ def details(ctx, pattern, command):
     get job details
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     if not len(pattern.split(' ')) == 5:
-        print('pattern not valid, should follow cron pattern (* * * * *)')
+        logger.error('pattern not valid, should follow cron pattern (* * * * *)')
         exit(-11)
 
     try:
@@ -338,11 +338,11 @@ def logs(ctx, pattern, command):
     get job logs
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     if not len(pattern.split(' ')) == 5:
-        print('pattern not valid, should follow cron pattern (* * * * *)')
+        logger.error('pattern not valid, should follow cron pattern (* * * * *)')
         exit(-11)
 
     try:
@@ -379,11 +379,11 @@ def run(ctx, pattern, command):
     run job
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     if not len(pattern.split(' ')) == 5:
-        print('pattern not valid, should follow cron pattern (* * * * *)')
+        logger.error('pattern not valid, should follow cron pattern (* * * * *)')
         exit(-11)
 
     data = {
@@ -417,11 +417,11 @@ def kill(ctx, pattern, command):
     kill job
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     if not len(pattern.split(' ')) == 5:
-        print('pattern not valid, should follow cron pattern (* * * * *)')
+        logger.error('pattern not valid, should follow cron pattern (* * * * *)')
         exit(-11)
 
     data = {
@@ -455,7 +455,7 @@ def export(ctx, file_name, force):
     export jobs
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     if ctx.obj['SITE'].username:
@@ -492,11 +492,11 @@ def import_data(ctx, file_name):
     export jobs
     """
     if not ctx.obj['SITE']:
-        print('could not locate configuration object')
+        logger.error('could not locate configuration object')
         exit(-10)
 
     if not os.path.exists(file_name):
-        print("could not locate file for importing {0}".format(file_name))
+        logger.error("could not locate file for importing {0}".format(file_name))
         exit(-34)
 
     with open(file_name, 'rb') as fp:
@@ -509,6 +509,29 @@ def import_data(ctx, file_name):
             r = requests.post("{0}/import".format(ctx.obj['URI']), data={'payload': data}, verify=ctx.obj['SSL_VERIFY'])
         if r.status_code == 200:
             logger.info("successfully imported data")
+        else:
+            logger.warning("unsuccessful request: {0} ({1})".format(r.text, r.status_code))
+    except requests.exceptions.RequestException as e:
+        logger.error(e)
+
+
+@cli.command(name='rebalance', help='re-balance jobs on cluster')
+@click.pass_context
+def re_balance(ctx):
+    """
+    re-balance jobs
+    """
+    if not ctx.obj['SITE']:
+        logger.error('could not locate configuration object')
+        exit(-10)
+
+    try:
+        if ctx.obj['SITE'].username:
+            r = requests.post("{0}/re-balance".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'], auth=(ctx.obj['SITE'].username, ctx.obj['SITE'].password))
+        else:
+            r = requests.post("{0}/re-balance".format(ctx.obj['URI']), verify=ctx.obj['SSL_VERIFY'])
+        if r.status_code == 200:
+            logger.info("successfully send re-balance request")
         else:
             logger.warning("unsuccessful request: {0} ({1})".format(r.text, r.status_code))
     except requests.exceptions.RequestException as e:
@@ -567,20 +590,25 @@ def remove(ctx, name):
 
 
 @cli.command(name='info', help='get site info')
-@click.option('-n', '--name', help='name of the site')
+@click.option('--show-password', is_flag=True, help='show password in plain text')
 @click.pass_context
-def info(ctx, name):
+def info(ctx, show_password):
+    if not ctx.obj['SITE']:
+        logger.error('could not locate configuration object')
+        exit(-10)
+
     config = Configuration(ctx.obj['PATH'])
-    site = next(iter([s for s in config.sites if s.name == name]), None)
+    site = next(iter([s for s in config.sites if s.name == ctx.obj['SITE'].name]), None)
     if not site:
-        logger.warning("could not find site {0}".format(name))
-    logger.info("name     : {0}".format(name))
+        logger.warning("could not find site {0}".format(ctx.obj['SITE'].name))
+    logger.info("name     : {0}".format(ctx.obj['SITE'].name))
     logger.info("servers  : {0}".format(', '.join(site.servers)))
     logger.info("port     : {0}".format(site.port))
     logger.info("ssl      : {0}".format(site.ssl))
     if site.username:
         logger.info("username : {0}".format(site.username))
-        logger.info("password : {0}".format(site.password))
+        if show_password:
+            logger.info("password : {0}".format(site.password))
 
 
 def main():
